@@ -9,7 +9,7 @@ from src.ingestion.loader import load_documents, split_documents
 from src.retrieval.vectorstore import build_vectorstore
 
 if __name__ == "__main__":
-    print("=== RAG Chatbot — Document Ingestion ===")
+    print("=== OPT Assistant - Document Ingestion ===")
     docs = load_documents()
     if not docs:
         print("No documents found in data/documents/. Add some PDFs or .txt files first.")

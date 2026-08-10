@@ -1,6 +1,7 @@
 """Basic tests for the ingestion pipeline."""
+from langchain_core.documents import Document
+
 from src.ingestion.loader import split_documents
-from langchain.schema import Document
 
 
 def test_split_documents_basic():

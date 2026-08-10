@@ -4,9 +4,11 @@ splits them into chunks, and returns LangChain Document objects.
 """
 import os
 from pathlib import Path
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
+
 from dotenv import load_dotenv
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pypdf import PdfReader
 
 load_dotenv()
 
@@ -17,17 +19,43 @@ DOCUMENTS_DIR = Path("data/documents")
 
 def load_documents(directory: Path = DOCUMENTS_DIR) -> list:
     """Load all PDFs and .txt files from a directory."""
+    if not directory.exists():
+        print(f"No document directory found at {directory}")
+        return []
+
     docs = []
-    for file in directory.iterdir():
-        if file.suffix == ".pdf":
-            loader = PyPDFLoader(str(file))
-        elif file.suffix == ".txt":
-            loader = TextLoader(str(file), encoding="utf-8")
-        else:
-            continue
-        docs.extend(loader.load())
+    for file in sorted(directory.iterdir()):
+        if file.suffix.lower() == ".pdf":
+            docs.extend(_load_pdf(file))
+        elif file.suffix.lower() == ".txt":
+            docs.append(_load_text(file))
+
     print(f"Loaded {len(docs)} raw document pages from {directory}")
     return docs
+
+
+def _load_pdf(file: Path) -> list[Document]:
+    """Load a PDF as one Document per page."""
+    reader = PdfReader(str(file))
+    pages = []
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        if text.strip():
+            pages.append(
+                Document(
+                    page_content=text,
+                    metadata={"source": file.name, "page": page_number},
+                )
+            )
+    return pages
+
+
+def _load_text(file: Path) -> Document:
+    """Load a text file as a single Document."""
+    return Document(
+        page_content=file.read_text(encoding="utf-8"),
+        metadata={"source": file.name, "page": 1},
+    )
 
 
 def split_documents(docs: list) -> list:

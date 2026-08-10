@@ -1,77 +1,196 @@
-# RAG Chatbot
+# International Student OPT RAG Assistant
 
-A production-ready Retrieval-Augmented Generation (RAG) chatbot that answers questions over your own documents.
+A retrieval-augmented generation chatbot that helps international students understand
+OPT, STEM OPT, CPT, and related F-1 practical training topics using trusted source
+documents.
+
+This project is built as a portfolio-ready AI application: it combines document
+ingestion, vector search, a guarded generation prompt, FastAPI endpoints, and tests.
+
+> This assistant is for general education only and is not legal advice. Students should
+> confirm their situation with their DSO or a qualified immigration attorney.
+
+## Why This Project
+
+International students often need quick, readable answers about practical training, but
+OPT rules depend on official guidance, school processes, and individual student records.
+This app uses RAG so answers can be grounded in documents instead of relying only on the
+model's memory.
+
+Good source candidates include:
+
+- [USCIS Practical Training guidance](https://www.uscis.gov/node/92821)
+- [ICE SEVIS Practical Training page](https://www.ice.gov/sevis/practical-training)
+- [Study in the States Form I-983 overview](https://studyinthestates.dhs.gov/form-i-983-overview)
+- School international office handbooks, OPT checklists, and policy PDFs
+
+## Features
+
+- PDF and `.txt` ingestion
+- Chunking and source metadata normalization
+- ChromaDB vector storage
+- OpenAI embeddings and chat model integration
+- FastAPI `/ingest`, `/chat`, and `/health` endpoints
+- Domain-specific prompt guardrails for OPT questions
+- Source list from the same retrieved chunks used for generation
+- Disclaimer in every chat response
+- CLI for local testing
+- Pytest coverage for API behavior, generation helpers, ingestion, and vectorstore helpers
 
 ## Architecture
 
+```text
+Documents
+   |
+   v
+Ingestion -> Chunking -> Embeddings -> ChromaDB
+                                      |
+Student question -> Single Retrieval -+
+                                      |
+                                      v
+                            Guarded RAG Prompt
+                                      |
+                                      v
+                              Answer + Sources
 ```
-Documents (PDF/TXT)
-      ↓
-  [Ingestion]  →  Chunk + Embed  →  ChromaDB (Vector Store)
-                                          ↓
-User Query  →  [Retrieval]  →  Top-K chunks
-                                          ↓
-                          [Generation]  →  LLM  →  Answer + Sources
-```
+
+See [docs/architecture.md](docs/architecture.md) for the detailed design.
+
+## Tech Stack
+
+- Python
+- FastAPI
+- LangChain
+- OpenAI
+- ChromaDB
+- Pytest
 
 ## Quick Start
 
-### 1. Install dependencies
+### 1. Create a virtual environment
+
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+```
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 2. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set up environment
+### 3. Configure environment variables
+
 ```bash
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
 ```
 
-### 3. Add your documents
-Drop PDFs or `.txt` files into `data/documents/`.
+Then edit `.env` and add your OpenAI API key:
 
-### 4. Ingest documents
+```bash
+OPENAI_API_KEY=your_openai_key_here
+```
+
+### 4. Add documents
+
+Place official guidance PDFs, school OPT checklists, or `.txt` files in:
+
+```text
+data/documents/
+```
+
+### 5. Build the vector store
+
 ```bash
 python ingest.py
 ```
 
-### 5a. Chat via CLI
+### 6. Run the API
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Open the API docs at:
+
+```text
+http://localhost:8000/docs
+```
+
+## API Example
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"When can I apply for post-completion OPT?\"}"
+```
+
+Example response shape:
+
+```json
+{
+  "answer": "Based on the retrieved context...",
+  "sources": ["uscis-practical-training.txt"],
+  "disclaimer": "This information is for general education only and is not legal advice. Students should confirm their situation with their DSO or a qualified immigration attorney."
+}
+```
+
+## CLI Usage
+
 ```bash
 python chat_cli.py
 ```
 
-### 5b. Start the API
+## Tests
+
 ```bash
-uvicorn src.api.main:app --reload
-# Visit http://localhost:8000/docs for the interactive API explorer
+pytest
 ```
+
+The tests avoid live model calls, so they can run without an OpenAI API key.
 
 ## Project Structure
-```
+
+```text
 rag-chatbot/
-├── data/
-│   └── documents/          ← drop your PDFs/TXTs here
-├── src/
-│   ├── ingestion/
-│   │   └── loader.py       ← document loading & chunking
-│   ├── retrieval/
-│   │   └── vectorstore.py  ← ChromaDB embedding & search
-│   ├── generation/
-│   │   └── chain.py        ← LangChain RAG chain
-│   └── api/
-│       └── main.py         ← FastAPI endpoints
-├── tests/
-├── ingest.py               ← one-time ingestion script
-├── chat_cli.py             ← CLI for quick testing
-├── requirements.txt
-└── .env.example
+|-- data/
+|   `-- documents/
+|-- docs/
+|   `-- architecture.md
+|-- src/
+|   |-- api/
+|   |   `-- main.py
+|   |-- generation/
+|   |   `-- chain.py
+|   |-- ingestion/
+|   |   `-- loader.py
+|   `-- retrieval/
+|       `-- vectorstore.py
+|-- tests/
+|-- chat_cli.py
+|-- ingest.py
+|-- requirements.txt
+`-- README.md
 ```
 
-## Next Steps (Week 4–6)
-- [ ] Add conversation memory (store chat history per session)
-- [ ] Build a Streamlit or React frontend
-- [ ] Add source citation highlighting in the UI
-- [ ] Dockerize the app
-- [ ] Deploy to Railway or Hugging Face Spaces
+## Roadmap
+
+- Add conversation memory by session
+- Add a Streamlit or React frontend
+- Add highlighted source snippets in answers
+- Add Docker support
+- Add CI with GitHub Actions
+- Add a curated official-source ingestion script
+- Deploy a demo API or web app

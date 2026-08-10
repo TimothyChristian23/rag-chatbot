@@ -4,11 +4,13 @@ Simple CLI to test your RAG pipeline without starting the API.
 Usage:
     python chat_cli.py
 """
+from src.generation.chain import LEGAL_DISCLAIMER, build_rag_chain
 from src.retrieval.vectorstore import load_vectorstore
-from src.generation.chain import build_rag_chain
+
 
 def main():
-    print("=== RAG Chatbot CLI ===")
+    print("=== International Student OPT Assistant CLI ===")
+    print(LEGAL_DISCLAIMER)
     print("Loading vector store...")
     vs = load_vectorstore()
     chain = build_rag_chain(vs)
@@ -22,6 +24,7 @@ def main():
             continue
         answer = chain.invoke(query)
         print(f"\nBot: {answer}\n")
+
 
 if __name__ == "__main__":
     main()
