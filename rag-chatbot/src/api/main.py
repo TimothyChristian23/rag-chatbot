@@ -25,6 +25,7 @@ from src.conversation.memory import (
 from src.generation.chain import (
     LEGAL_DISCLAIMER,
     build_answer_chain,
+    collect_source_snippets,
     collect_sources,
     generate_answer,
 )
@@ -56,6 +57,13 @@ class ChatMessageResponse(BaseModel):
     content: str
 
 
+class SourceSnippetResponse(BaseModel):
+    source: str
+    page: str | int
+    snippet: str
+    rank: int
+
+
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     session_id: str = Field(default="default", max_length=100)
@@ -80,6 +88,7 @@ class ChatResponse(BaseModel):
     session_id: str
     answer: str
     sources: list[str]
+    source_snippets: list[SourceSnippetResponse]
     disclaimer: str = LEGAL_DISCLAIMER
     history: list[ChatMessageResponse]
 
@@ -160,11 +169,13 @@ async def chat(request: ChatRequest):
         chat_history=history,
     )
     sources = collect_sources(docs)
+    source_snippets = collect_source_snippets(docs)
     updated_history = _memory.add_exchange(request.session_id, request.question, answer)
     return ChatResponse(
         session_id=request.session_id,
         answer=answer,
         sources=sources,
+        source_snippets=source_snippets,
         disclaimer=LEGAL_DISCLAIMER,
         history=_serialize_history(updated_history),
     )

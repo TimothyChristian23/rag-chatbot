@@ -60,6 +60,23 @@ def collect_sources(docs: list) -> list[str]:
     return sorted({doc.metadata.get("source", "unknown") for doc in docs})
 
 
+def collect_source_snippets(docs: list, max_snippet_chars: int = 420) -> list[dict[str, str | int]]:
+    """Return compact source snippets from the retrieved documents."""
+    snippets = []
+    for index, doc in enumerate(docs, start=1):
+        content = " ".join(doc.page_content.split())
+        if len(content) > max_snippet_chars:
+            content = f"{content[:max_snippet_chars].rstrip()}..."
+
+        snippets.append({
+            "source": doc.metadata.get("source", "unknown"),
+            "page": doc.metadata.get("page", "?"),
+            "snippet": content,
+            "rank": index,
+        })
+    return snippets
+
+
 def format_chat_history(messages: list | None) -> str:
     """Format stored conversation messages for the prompt."""
     if not messages:

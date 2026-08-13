@@ -16,6 +16,7 @@ const documentInput = document.querySelector("#documentInput");
 const uploadButton = document.querySelector("#uploadButton");
 const uploadStatus = document.querySelector("#uploadStatus");
 const apiStatus = document.querySelector("#apiStatus");
+const sourceSnippetsEl = document.querySelector("#sourceSnippets");
 
 sessionInput.value = state.sessionId;
 
@@ -57,6 +58,7 @@ async function handleChatSubmit(event) {
     const payload = await parseJsonResponse(response);
     renderHistory(payload.history);
     renderSources(payload.sources);
+    renderSourceSnippets(payload.source_snippets);
   } catch (error) {
     removeMessage(pendingId);
     appendMessage("assistant", error.message);
@@ -115,6 +117,7 @@ async function clearCurrentSession() {
     const payload = await parseJsonResponse(response);
     renderHistory(payload.history);
     renderSources([]);
+    renderSourceSnippets([]);
     questionInput.focus();
   } catch (error) {
     appendMessage("assistant", error.message);
@@ -127,6 +130,7 @@ function createNewSession() {
   sessionInput.value = state.sessionId;
   renderHistory([]);
   renderSources([]);
+  renderSourceSnippets([]);
   questionInput.focus();
 }
 
@@ -135,6 +139,7 @@ function switchSession() {
   sessionInput.value = state.sessionId;
   storeSessionId(state.sessionId);
   renderSources([]);
+  renderSourceSnippets([]);
   loadHistory();
 }
 
@@ -223,6 +228,30 @@ function renderSources(sources) {
     chip.className = "source-chip";
     chip.textContent = source;
     sourcesEl.appendChild(chip);
+  });
+}
+
+function renderSourceSnippets(snippets) {
+  sourceSnippetsEl.innerHTML = "";
+  if (!snippets || !snippets.length) return;
+
+  snippets.forEach((item) => {
+    const article = document.createElement("article");
+    article.className = "snippet-card";
+
+    const title = document.createElement("div");
+    title.className = "snippet-title";
+    title.textContent = `#${item.rank} ${item.source}`;
+
+    const meta = document.createElement("div");
+    meta.className = "snippet-meta";
+    meta.textContent = `Page ${item.page}`;
+
+    const text = document.createElement("p");
+    text.textContent = item.snippet;
+
+    article.append(title, meta, text);
+    sourceSnippetsEl.appendChild(article);
   });
 }
 

@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from src.generation.chain import (
     LEGAL_DISCLAIMER,
     SYSTEM_PROMPT,
+    collect_source_snippets,
     collect_sources,
     format_chat_history,
     format_context,
@@ -61,3 +62,23 @@ def test_collect_sources_returns_sorted_unique_sources():
     ]
 
     assert collect_sources(docs) == ["a.txt", "z.txt"]
+
+
+def test_collect_source_snippets_returns_ranked_compact_chunks():
+    docs = [
+        Document(
+            page_content="OPT text with\nextra spacing. " * 20,
+            metadata={"source": "guide.txt", "page": 3},
+        )
+    ]
+
+    snippets = collect_source_snippets(docs, max_snippet_chars=45)
+
+    assert snippets == [
+        {
+            "source": "guide.txt",
+            "page": 3,
+            "snippet": "OPT text with extra spacing. OPT text with ex...",
+            "rank": 1,
+        }
+    ]

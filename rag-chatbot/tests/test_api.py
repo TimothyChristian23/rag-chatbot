@@ -59,6 +59,14 @@ def test_chat_uses_same_docs_for_answer_and_sources(monkeypatch):
     assert payload["session_id"] == "demo"
     assert payload["answer"] == "Use your school OPT guide."
     assert payload["sources"] == ["school-opt-guide.txt"]
+    assert payload["source_snippets"] == [
+        {
+            "source": "school-opt-guide.txt",
+            "page": 1,
+            "snippet": "OPT source context",
+            "rank": 1,
+        }
+    ]
     assert payload["history"][-2:] == [
         {"role": "user", "content": "What is OPT?"},
         {"role": "assistant", "content": "Use your school OPT guide."},

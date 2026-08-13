@@ -35,6 +35,7 @@ Good source candidates include:
 - Browser chat frontend served by FastAPI
 - Domain-specific prompt guardrails for OPT questions
 - Source list from the same retrieved chunks used for generation
+- Highlighted retrieved source snippets for answer traceability
 - Disclaimer in every chat response
 - CLI for local testing
 - Pytest coverage for API behavior, generation helpers, ingestion, and vectorstore helpers
@@ -152,6 +153,14 @@ Example response shape:
   "session_id": "demo-student",
   "answer": "Based on the retrieved context...",
   "sources": ["uscis-practical-training.txt"],
+  "source_snippets": [
+    {
+      "source": "uscis-practical-training.txt",
+      "page": 1,
+      "snippet": "Students may apply for post-completion OPT...",
+      "rank": 1
+    }
+  ],
   "disclaimer": "This information is for general education only and is not legal advice. Students should confirm their situation with their DSO or a qualified immigration attorney.",
   "history": [
     {"role": "user", "content": "When can I apply for post-completion OPT?"},
@@ -213,7 +222,6 @@ rag-chatbot/
 
 ## Roadmap
 
-- Add highlighted source snippets in answers
 - Add Docker support
 - Add CI with GitHub Actions
 - Add a curated official-source ingestion script
