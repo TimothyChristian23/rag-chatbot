@@ -39,6 +39,7 @@ Good source candidates include:
 - Disclaimer in every chat response
 - CLI for local testing
 - Pytest coverage for API behavior, generation helpers, ingestion, and vectorstore helpers
+- GitHub Actions CI for push and pull request test runs
 
 ## Architecture
 
@@ -223,6 +224,5 @@ rag-chatbot/
 ## Roadmap
 
 - Add Docker support
-- Add CI with GitHub Actions
 - Add a curated official-source ingestion script
 - Deploy a demo API or web app
