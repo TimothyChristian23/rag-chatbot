@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>International Student OPT Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="chat-panel" aria-label="OPT chat assistant">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">RAG assistant</p>
+            <h1>International Student OPT Assistant</h1>
+          </div>
+          <div class="status-group">
+            <span id="apiStatus" class="status-pill">Checking</span>
+            <button id="clearChatButton" class="icon-button" type="button" title="Clear chat" aria-label="Clear chat">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M3 12a9 9 0 1 0 3-6.7M3 4v6h6"></path>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div id="messages" class="messages" aria-live="polite"></div>
+
+        <form id="chatForm" class="composer">
+          <label class="sr-only" for="questionInput">Question</label>
+          <textarea
+            id="questionInput"
+            name="question"
+            rows="2"
+            placeholder="Ask an OPT, STEM OPT, CPT, or F-1 practical training question..."
+            required
+          ></textarea>
+          <button id="sendButton" type="submit">Send</button>
+        </form>
+      </section>
+
+      <aside class="side-panel" aria-label="Session and documents">
+        <section class="panel-section">
+          <h2>Session</h2>
+          <label for="sessionInput">Session ID</label>
+          <div class="session-row">
+            <input id="sessionInput" type="text" autocomplete="off">
+            <button id="newSessionButton" class="secondary-button" type="button">New</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>Documents</h2>
+          <form id="uploadForm" class="upload-form">
+            <label for="documentInput">Upload PDF or TXT</label>
+            <input id="documentInput" type="file" accept=".pdf,.txt">
+            <button id="uploadButton" class="secondary-button" type="submit">Upload & ingest</button>
+          </form>
+          <p id="uploadStatus" class="helper-text"></p>
+        </section>
+
+        <section class="panel-section">
+          <h2>Latest Sources</h2>
+          <div id="sources" class="source-list">
+            <span class="empty-state">No sources yet</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

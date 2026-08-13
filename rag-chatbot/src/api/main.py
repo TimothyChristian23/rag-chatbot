@@ -4,13 +4,24 @@ FastAPI backend for the OPT assistant. It exposes three endpoints:
   POST /chat     -> answer a question using the RAG chain
   GET  /health   -> check server status
 """
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+from src.conversation.memory import (
+    ChatMessage,
+    ConversationMemory,
+    build_retrieval_query,
+    normalize_session_id,
+)
 from src.generation.chain import (
     LEGAL_DISCLAIMER,
     build_answer_chain,
@@ -18,7 +29,9 @@ from src.generation.chain import (
     generate_answer,
 )
 from src.ingestion.loader import DOCUMENTS_DIR, load_documents, split_documents
-from src.retrieval.vectorstore import build_vectorstore, load_vectorstore, retrieve
+from src.retrieval.vectorstore import CHROMA_PERSIST_DIR, build_vectorstore, load_vectorstore, retrieve
+
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 app = FastAPI(title="International Student OPT RAG API", version="1.0.0")
 
@@ -29,9 +42,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
 # Module-level state for a simple single-process demo app.
 _answer_chain = None
 _vectorstore = None
+_memory = ConversationMemory()
+
+
+class ChatMessageResponse(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
 
 
 class ChatRequest(BaseModel):
@@ -47,11 +69,24 @@ class ChatRequest(BaseModel):
             raise ValueError("Question cannot be blank.")
         return question
 
+    @field_validator("session_id", mode="before")
+    @classmethod
+    def normalize_session(cls, value: str | None) -> str:
+        """Trim session IDs and use a stable default for blank values."""
+        return normalize_session_id(value)
+
 
 class ChatResponse(BaseModel):
+    session_id: str
     answer: str
     sources: list[str]
     disclaimer: str = LEGAL_DISCLAIMER
+    history: list[ChatMessageResponse]
+
+
+class ChatHistoryResponse(BaseModel):
+    session_id: str
+    history: list[ChatMessageResponse]
 
 
 def _get_answer_chain():
@@ -68,6 +103,23 @@ def _get_vectorstore():
     if _vectorstore is None:
         _vectorstore = load_vectorstore()
     return _vectorstore
+
+
+def _serialize_history(history: list[ChatMessage]) -> list[ChatMessageResponse]:
+    """Convert stored dataclasses into API response models."""
+    return [
+        ChatMessageResponse(role=message.role, content=message.content)
+        for message in history
+    ]
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def frontend():
+    """Serve the browser chat UI."""
+    index_path = FRONTEND_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend files were not found.")
+    return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
 
 @app.post("/ingest")
@@ -98,16 +150,51 @@ async def chat(request: ChatRequest):
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    docs = retrieve(request.question, vectorstore)
-    answer = generate_answer(request.question, docs, _get_answer_chain())
+    history = _memory.get_history(request.session_id)
+    retrieval_query = build_retrieval_query(request.question, history)
+    docs = retrieve(retrieval_query, vectorstore)
+    answer = generate_answer(
+        request.question,
+        docs,
+        _get_answer_chain(),
+        chat_history=history,
+    )
     sources = collect_sources(docs)
-    return ChatResponse(answer=answer, sources=sources, disclaimer=LEGAL_DISCLAIMER)
+    updated_history = _memory.add_exchange(request.session_id, request.question, answer)
+    return ChatResponse(
+        session_id=request.session_id,
+        answer=answer,
+        sources=sources,
+        disclaimer=LEGAL_DISCLAIMER,
+        history=_serialize_history(updated_history),
+    )
+
+
+@app.get("/chat/sessions/{session_id}", response_model=ChatHistoryResponse)
+async def chat_history(session_id: str):
+    """Return the stored history for one chat session."""
+    normalized_session_id = normalize_session_id(session_id)
+    return ChatHistoryResponse(
+        session_id=normalized_session_id,
+        history=_serialize_history(_memory.get_history(normalized_session_id)),
+    )
+
+
+@app.delete("/chat/sessions/{session_id}", response_model=ChatHistoryResponse)
+async def clear_chat_history(session_id: str):
+    """Clear the stored history for one chat session."""
+    normalized_session_id = normalize_session_id(session_id)
+    _memory.clear_session(normalized_session_id)
+    return ChatHistoryResponse(session_id=normalized_session_id, history=[])
 
 
 @app.get("/health")
 async def health():
+    vectorstore_available = Path(CHROMA_PERSIST_DIR).exists()
     return {
         "status": "ok",
         "chain_loaded": _answer_chain is not None,
         "vectorstore_loaded": _vectorstore is not None,
+        "vectorstore_available": vectorstore_available,
+        "memory_sessions": _memory.session_count(),
     }

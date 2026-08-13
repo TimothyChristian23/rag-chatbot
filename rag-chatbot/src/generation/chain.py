@@ -1,6 +1,8 @@
 """
 RAG chain for an OPT-focused international student assistant.
 """
+from __future__ import annotations
+
 import os
 
 from dotenv import load_dotenv
@@ -23,6 +25,8 @@ and common F-1 practical training questions.
 
 Rules:
 - Use ONLY the context provided below.
+- Use conversation history only to understand follow-up questions; do not treat it as
+  evidence for immigration rules, deadlines, forms, fees, or policies.
 - If the answer is not supported by the context, say you do not have enough information.
 - Do not invent deadlines, eligibility rules, forms, fees, government policies, or legal conclusions.
 - Always include source citations from the retrieved context.
@@ -30,6 +34,9 @@ Rules:
   tell the student to contact their DSO or a qualified immigration attorney.
 - Keep the tone clear, practical, and student-friendly.
 - Include this disclaimer in every answer: {legal_disclaimer}
+
+Conversation history:
+{chat_history}
 
 Context:
 {context}
@@ -53,6 +60,24 @@ def collect_sources(docs: list) -> list[str]:
     return sorted({doc.metadata.get("source", "unknown") for doc in docs})
 
 
+def format_chat_history(messages: list | None) -> str:
+    """Format stored conversation messages for the prompt."""
+    if not messages:
+        return "No prior conversation."
+
+    lines = []
+    for message in messages:
+        role = message.get("role") if isinstance(message, dict) else getattr(message, "role", "")
+        content = message.get("content") if isinstance(message, dict) else getattr(message, "content", "")
+        content = str(content).strip()
+        if not content:
+            continue
+        label = "Student" if role == "user" else "Assistant"
+        lines.append(f"{label}: {content}")
+
+    return "\n".join(lines) if lines else "No prior conversation."
+
+
 def build_answer_chain():
     """Return a runnable chain that answers from an already-formatted context."""
     llm = ChatOpenAI(model=os.getenv("CHAT_MODEL", "gpt-4o-mini"), temperature=0)
@@ -65,11 +90,12 @@ def build_answer_chain():
     return prompt | llm | StrOutputParser()
 
 
-def generate_answer(question: str, docs: list, answer_chain=None) -> str:
+def generate_answer(question: str, docs: list, answer_chain=None, chat_history: list | None = None) -> str:
     """Generate an answer from the exact documents that will be cited."""
     chain = answer_chain or build_answer_chain()
     return chain.invoke({
         "context": format_context(docs),
+        "chat_history": format_chat_history(chat_history),
         "question": question,
         "legal_disclaimer": LEGAL_DISCLAIMER,
     })
@@ -84,6 +110,7 @@ def build_rag_chain(vectorstore):
     chain = (
         {
             "context": retriever | format_context,
+            "chat_history": lambda _: format_chat_history([]),
             "question": RunnablePassthrough(),
             "legal_disclaimer": lambda _: LEGAL_DISCLAIMER,
         }

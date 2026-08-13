@@ -31,6 +31,8 @@ Good source candidates include:
 - ChromaDB vector storage
 - OpenAI embeddings and chat model integration
 - FastAPI `/ingest`, `/chat`, and `/health` endpoints
+- Session-based conversation memory for follow-up questions
+- Browser chat frontend served by FastAPI
 - Domain-specific prompt guardrails for OPT questions
 - Source list from the same retrieved chunks used for generation
 - Disclaimer in every chat response
@@ -129,22 +131,40 @@ Open the API docs at:
 http://localhost:8000/docs
 ```
 
+Open the browser chat UI at:
+
+```text
+http://localhost:8000
+```
+
 ## API Example
 
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d "{\"question\":\"When can I apply for post-completion OPT?\"}"
+  -d "{\"session_id\":\"demo-student\",\"question\":\"When can I apply for post-completion OPT?\"}"
 ```
 
 Example response shape:
 
 ```json
 {
+  "session_id": "demo-student",
   "answer": "Based on the retrieved context...",
   "sources": ["uscis-practical-training.txt"],
-  "disclaimer": "This information is for general education only and is not legal advice. Students should confirm their situation with their DSO or a qualified immigration attorney."
+  "disclaimer": "This information is for general education only and is not legal advice. Students should confirm their situation with their DSO or a qualified immigration attorney.",
+  "history": [
+    {"role": "user", "content": "When can I apply for post-completion OPT?"},
+    {"role": "assistant", "content": "Based on the retrieved context..."}
+  ]
 }
+```
+
+Session history can be fetched or cleared with:
+
+```bash
+curl http://localhost:8000/chat/sessions/demo-student
+curl -X DELETE http://localhost:8000/chat/sessions/demo-student
 ```
 
 ## CLI Usage
@@ -174,10 +194,16 @@ rag-chatbot/
 |   |   `-- main.py
 |   |-- generation/
 |   |   `-- chain.py
+|   |-- conversation/
+|   |   `-- memory.py
 |   |-- ingestion/
 |   |   `-- loader.py
 |   `-- retrieval/
 |       `-- vectorstore.py
+|-- frontend/
+|   |-- index.html
+|   |-- styles.css
+|   `-- app.js
 |-- tests/
 |-- chat_cli.py
 |-- ingest.py
@@ -187,8 +213,6 @@ rag-chatbot/
 
 ## Roadmap
 
-- Add conversation memory by session
-- Add a Streamlit or React frontend
 - Add highlighted source snippets in answers
 - Add Docker support
 - Add CI with GitHub Actions
